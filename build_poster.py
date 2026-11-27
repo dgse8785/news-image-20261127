@@ -1,117 +1,103 @@
 #!/usr/bin/env python3
-"""Poster generator for the Friday 27 November 2026 news edition.
+"""Draw the 27 November 2026 front page from scratch.
 
-The artwork is a single square page that reads like the front of a
-broadsheet: a masthead naming the day, one dominant lead story, four
-smaller stories arranged as a two-by-two grid, a wide markets panel
-underneath, and a closing strip that sweeps up the rest of the day.
-All of the wording lives in plain data structures below, and the
-drawing helpers only care about boxes, fonts and wrapped lines, so
-the editorial content can be swapped without touching the layout
-machinery.  Every coordinate and string is fixed, which makes the
-rendered PNG fully deterministic.
+I keep the whole edition in this one module: the stories sit in
+plain tuples near the top, and a small canvas class underneath
+turns them into a 1024-pixel square.  Nothing is read from disk
+besides the DejaVu fonts, and nothing about the drawing depends
+on the clock or on randomness, so re-running the script always
+produces the same PNG bytes.
 """
 
-import os
+from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-PAGE = 1024
-MARGIN = 36
-CONTENT = PAGE - MARGIN * 2
-GAP = 12
+SIDE = 1024
+EDGE = 36
+COLUMN_WIDTH = SIDE - EDGE * 2
+ROW_GAP = 12
 
-BACKGROUND = (8, 20, 38)
-PANEL = (17, 38, 64)
-PANEL_LINE = (55, 82, 114)
-INK = (237, 242, 249)
-MUTED = (169, 186, 206)
-GOLD = (222, 184, 66)
-RED = (236, 100, 84)
-TEAL = (84, 201, 183)
-SKY = (105, 183, 246)
-
-FONT_DIR = "/usr/share/fonts/truetype/dejavu"
-FONT_BOLD = "DejaVuSans-Bold.ttf"
-FONT_PLAIN = "DejaVuSans.ttf"
-
-HERE = os.path.dirname(os.path.abspath(__file__))
-OUT_FILE = os.path.join(HERE, "entry.png")
-
-LEAD = {
-    "kicker": "LEAD - NEW ZEALAND POLITICS",
-    "headline": "NZ COALITION FALLS ONE SEAT SHORT",
-    "body": (
-        "Final official results give the National-led coalition 65 of "
-        "130 seats, one short of a majority, after special votes cost "
-        "it two seats. Prime Minister Christopher Luxon must now win "
-        "support from the centrist Opportunity party to govern, or "
-        "risk another election. Labour won the popular vote but lacks "
-        "the seats to form a government."
-    ),
-    "accent": GOLD,
+COLOURS = {
+    "page": (8, 20, 38),
+    "card": (17, 38, 64),
+    "frame": (55, 82, 114),
+    "text": (237, 242, 249),
+    "soft": (169, 186, 206),
+    "gold": (222, 184, 66),
+    "coral": (236, 100, 84),
+    "mint": (84, 201, 183),
+    "sky": (105, 183, 246),
 }
 
-GRID = [
-    {
-        "kicker": "BANGLADESH - HASINA RETURN",
-        "headline": "HASINA SETS RETURN DATE",
-        "body": (
-            "Ousted prime minister Sheikh Hasina, 79, sentenced to "
-            "death in absentia, says she will return on 16 December, "
-            "Victory Day, from Delhi, where she fled in August 2024. "
-            "Dhaka says she would be arrested at once."
-        ),
-        "accent": RED,
-    },
-    {
-        "kicker": "WEST BANK - DEMOLITIONS",
-        "headline": "SAMRA HOMES DEMOLISHED",
-        "body": (
-            "Israeli forces demolish about 50 structures, including "
-            "homes and livestock shelters, in the Palestinian farming "
-            "community of Samra in Tubas, in the Jordan Valley of "
-            "the occupied West Bank."
-        ),
-        "accent": TEAL,
-    },
-    {
-        "kicker": "FRANCE - AFP CYBERATTACK",
-        "headline": "AFP PLATFORM OFFLINE",
-        "body": (
-            "Agence France-Presse takes its AFP Forum content "
-            "platform offline after a cyberattack that began at "
-            "00:30 GMT, and opens an investigation into who was "
-            "behind the intrusion."
-        ),
-        "accent": SKY,
-    },
-    {
-        "kicker": "ARGENTINA - CENTRAL BANK",
-        "headline": "PRINTING MONEY BARRED",
-        "body": (
-            "Argentina's Chamber of Deputies gives final approval "
-            "to a bill barring the central bank from printing money "
-            "to fund government spending, defining its main mission "
-            "as maintaining the currency's value."
-        ),
-        "accent": GOLD,
-    },
+FONT_FILES = {
+    True: "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    False: "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+}
+
+# Each story is (section label, headline, summary, accent colour).
+TOP_STORY = (
+    "LEAD - NEW ZEALAND POLITICS",
+    "NZ COALITION FALLS ONE SEAT SHORT",
+    "Final official results give the National-led coalition 65 of "
+    "130 seats, one short of a majority, after special votes cost "
+    "it two seats. Prime Minister Christopher Luxon must now win "
+    "support from the centrist Opportunity party to govern, or "
+    "risk another election. Labour won the popular vote but lacks "
+    "the seats to form a government.",
+    "gold",
+)
+
+MIDDLE_STORIES = [
+    (
+        "BANGLADESH - HASINA RETURN",
+        "HASINA SETS RETURN DATE",
+        "Ousted prime minister Sheikh Hasina, 79, sentenced to "
+        "death in absentia, says she will return on 16 December, "
+        "Victory Day, from Delhi, where she fled in August 2024. "
+        "Dhaka says she would be arrested at once.",
+        "coral",
+    ),
+    (
+        "WEST BANK - DEMOLITIONS",
+        "SAMRA HOMES DEMOLISHED",
+        "Israeli forces demolish about 50 structures, including "
+        "homes and livestock shelters, in the Palestinian farming "
+        "community of Samra in Tubas, in the Jordan Valley of "
+        "the occupied West Bank.",
+        "mint",
+    ),
+    (
+        "FRANCE - AFP CYBERATTACK",
+        "AFP PLATFORM OFFLINE",
+        "Agence France-Presse takes its AFP Forum content "
+        "platform offline after a cyberattack that began at "
+        "00:30 GMT, and opens an investigation into who was "
+        "behind the intrusion.",
+        "sky",
+    ),
+    (
+        "ARGENTINA - CENTRAL BANK",
+        "PRINTING MONEY BARRED",
+        "Argentina's Chamber of Deputies gives final approval "
+        "to a bill barring the central bank from printing money "
+        "to fund government spending, defining its main mission "
+        "as maintaining the currency's value.",
+        "gold",
+    ),
 ]
 
-WIDE = {
-    "kicker": "MARKETS - SHARES STEADIER, OIL UP",
-    "headline": "MARKETS FIND FOOTING",
-    "body": (
-        "Asian shares edge higher after a bruising month of AI jitters, "
-        "Brent crude holds near $96 a barrel and heads for its first "
-        "weekly gain in four, and the dollar is set for a third monthly "
-        "gain. Tokyo core inflation accelerates to 2.9% in November."
-    ),
-    "accent": TEAL,
-}
+MARKET_STORY = (
+    "MARKETS - SHARES STEADIER, OIL UP",
+    "MARKETS FIND FOOTING",
+    "Asian shares edge higher after a bruising month of AI jitters, "
+    "Brent crude holds near $96 a barrel and heads for its first "
+    "weekly gain in four, and the dollar is set for a third monthly "
+    "gain. Tokyo core inflation accelerates to 2.9% in November.",
+    "mint",
+)
 
-ALSO = [
+SHORT_ITEMS = [
     "Turkey completes ratification of the Mecca defence pact with Pakistan and Saudi Arabia",
     "China tests new Taiwan landing tactics, linking civilian vessels into an 800-metre floating bridge in Fujian drills",
     "South Korea repatriates six North Koreans rescued from a drifting fishing boat; a seventh stays",
@@ -122,101 +108,123 @@ ALSO = [
     "Iran warns South Korea over an expanded naval role near the Gulf of Oman",
 ]
 
-
-def load_font(size, bold=False):
-    name = FONT_BOLD if bold else FONT_PLAIN
-    return ImageFont.truetype(os.path.join(FONT_DIR, name), size)
+TARGET = Path(__file__).resolve().parent / "entry.png"
 
 
-def wrap(draw, text, font, width):
-    lines = []
-    current = ""
-    for word in text.split():
-        trial = word if not current else current + " " + word
-        if draw.textlength(trial, font=font) <= width or not current:
-            current = trial
-        else:
-            lines.append(current)
-            current = word
-    if current:
-        lines.append(current)
-    return lines
+class FrontPage:
+    """Accumulates one edition onto a Pillow canvas, top to bottom."""
+
+    def __init__(self):
+        self.picture = Image.new("RGB", (SIDE, SIDE), COLOURS["page"])
+        self.pen = ImageDraw.Draw(self.picture)
+        self.cursor = 0
+
+    @staticmethod
+    def typeface(points, bold=False):
+        return ImageFont.truetype(FONT_FILES[bold], points)
+
+    def measure(self, wording, face):
+        return self.pen.textlength(wording, font=face)
+
+    def split_lines(self, wording, face, limit):
+        # Greedy line breaking measured in pixels, word by word.
+        queue = wording.split()
+        finished = []
+        while queue:
+            line = queue.pop(0)
+            while queue and self.measure(line + " " + queue[0], face) <= limit:
+                line = line + " " + queue.pop(0)
+            finished.append(line)
+        return finished
+
+    def put_lines(self, left, top, wording, face, colour, limit, step):
+        height = top
+        for row in self.split_lines(wording, face, limit):
+            self.pen.text((left, height), row, font=face, fill=colour)
+            height += step
+        return height
+
+    def centred_line(self, wording, top, points, colour_key):
+        face = self.typeface(points, bold=True)
+        start = (SIDE - self.measure(wording, face)) / 2
+        self.pen.text((start, top), wording, font=face, fill=COLOURS[colour_key])
+
+    def header(self):
+        self.centred_line("THE WORLD IN ONE IMAGE", 22, 40, "text")
+        self.centred_line("FRIDAY - 27 NOVEMBER 2026", 74, 21, "gold")
+        self.pen.rectangle(
+            [EDGE, 110, SIDE - EDGE, 114], fill=COLOURS["gold"]
+        )
+        self.cursor = 126
+
+    def card(self, left, top, width, height, story, title_points, body_points):
+        label, headline, summary, accent_key = story
+        accent = COLOURS[accent_key]
+        box = [left, top, left + width, top + height]
+        self.pen.rounded_rectangle(
+            box, radius=12, fill=COLOURS["card"],
+            outline=COLOURS["frame"], width=2,
+        )
+        self.pen.rectangle([left, top + 10, left + 5, top + 52], fill=accent)
+        room = width - 34
+        y = self.put_lines(
+            left + 17, top + 11, label,
+            self.typeface(14, bold=True), accent, room, 18,
+        )
+        y = self.put_lines(
+            left + 17, y + 2, headline,
+            self.typeface(title_points, bold=True),
+            COLOURS["text"], room, title_points + 4,
+        )
+        self.put_lines(
+            left + 17, y + 4, summary,
+            self.typeface(body_points), COLOURS["soft"],
+            room, body_points + 5,
+        )
+
+    def assemble(self):
+        # Placement is strictly sequential: header, lead, the four
+        # middle cards in reading order, markets, then the strip.
+        self.header()
+        self.card(EDGE, self.cursor, COLUMN_WIDTH, 182, TOP_STORY, 29, 17)
+        self.cursor += 182 + ROW_GAP
+
+        pair_width = (COLUMN_WIDTH - ROW_GAP) // 2
+        for index, story in enumerate(MIDDLE_STORIES):
+            column = index % 2
+            if index == 2:
+                self.cursor += 158 + ROW_GAP
+            left = EDGE + column * (pair_width + ROW_GAP)
+            self.card(left, self.cursor, pair_width, 158, story, 19, 14)
+        self.cursor += 158 + ROW_GAP
+
+        self.card(EDGE, self.cursor, COLUMN_WIDTH, 106, MARKET_STORY, 20, 15)
+        self.cursor += 106 + ROW_GAP
+
+        self.pen.rectangle(
+            [EDGE, self.cursor, SIDE - EDGE, self.cursor + 3],
+            fill=COLOURS["gold"],
+        )
+        y = self.put_lines(
+            EDGE, self.cursor + 11, "ALSO TODAY",
+            self.typeface(16, bold=True), COLOURS["gold"], COLUMN_WIDTH, 20,
+        )
+        self.put_lines(
+            EDGE, y + 4, "  /  ".join(SHORT_ITEMS),
+            self.typeface(14), COLOURS["text"], COLUMN_WIDTH, 19,
+        )
+        self.centred_line(
+            "Wire reports of 27 November 2026 - One page, one day",
+            990, 13, "soft",
+        )
+        return self.picture
 
 
-def draw_text_block(draw, x, y, text, font, colour, width, leading):
-    for line in wrap(draw, text, font, width):
-        draw.text((x, y), line, font=font, fill=colour)
-        y += leading
-    return y
-
-
-def draw_panel(draw, x, y, width, height, story, headline_size, body_size):
-    draw.rounded_rectangle(
-        [x, y, x + width, y + height], radius=12,
-        fill=PANEL, outline=PANEL_LINE, width=2,
-    )
-    draw.rectangle([x, y + 10, x + 5, y + 52], fill=story["accent"])
-    inner = width - 34
-    cursor = draw_text_block(
-        draw, x + 17, y + 11, story["kicker"],
-        load_font(14, bold=True), story["accent"], inner, 18,
-    )
-    cursor = draw_text_block(
-        draw, x + 17, cursor + 2, story["headline"],
-        load_font(headline_size, bold=True), INK, inner, headline_size + 4,
-    )
-    draw_text_block(
-        draw, x + 17, cursor + 4, story["body"],
-        load_font(body_size), MUTED, inner, body_size + 5,
-    )
-
-
-def centred(draw, text, y, size, colour):
-    font = load_font(size, bold=True)
-    w = draw.textlength(text, font=font)
-    draw.text(((PAGE - w) / 2, y), text, font=font, fill=colour)
-
-
-def build():
-    # One fresh canvas per call: no state is shared between renders,
-    # so two consecutive builds cannot drift apart.
-    image = Image.new("RGB", (PAGE, PAGE), BACKGROUND)
-    draw = ImageDraw.Draw(image)
-
-    centred(draw, "THE WORLD IN ONE IMAGE", 22, 40, INK)
-    centred(draw, "FRIDAY - 27 NOVEMBER 2026", 74, 21, GOLD)
-    draw.rectangle([MARGIN, 110, PAGE - MARGIN, 114], fill=GOLD)
-
-    y = 126
-    draw_panel(draw, MARGIN, y, CONTENT, 182, LEAD, 29, 17)
-    y += 182 + GAP
-
-    half = (CONTENT - GAP) // 2
-    for row in range(2):
-        for col in range(2):
-            story = GRID[row * 2 + col]
-            draw_panel(
-                draw, MARGIN + col * (half + GAP), y, half, 158,
-                story, 19, 14,
-            )
-        y += 158 + GAP
-
-    draw_panel(draw, MARGIN, y, CONTENT, 106, WIDE, 20, 15)
-    y += 106 + GAP
-
-    draw.rectangle([MARGIN, y, PAGE - MARGIN, y + 3], fill=GOLD)
-    y = draw_text_block(
-        draw, MARGIN, y + 11, "ALSO TODAY",
-        load_font(16, bold=True), GOLD, CONTENT, 20,
-    )
-    joined = "  /  ".join(ALSO)
-    draw_text_block(draw, MARGIN, y + 4, joined, load_font(14), INK, CONTENT, 19)
-
-    # Footer names the source day so a thumbnail still dates the page.
-    centred(draw, "Wire reports of 27 November 2026 - One page, one day", 990, 13, MUTED)
-    image.save(OUT_FILE, format="PNG")
-    return OUT_FILE
+def render():
+    edition = FrontPage()
+    edition.assemble().save(TARGET, format="PNG")
+    return TARGET
 
 
 if __name__ == "__main__":
-    print("Poster saved to", build())
+    print("Wrote", render())

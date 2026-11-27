@@ -4,93 +4,101 @@
 [![rank](https://make.fun/badge/news-image-20261127/dgse8785/news-image-20261127/rank.svg)](https://make.fun/bounty/news-image-20261127/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=news-image-20261127)
 [![reward](https://make.fun/badge/news-image-20261127/dgse8785/news-image-20261127/reward.svg)](https://make.fun/bounty/news-image-20261127?utm_source=github&utm_medium=readme&utm_campaign=news-image-20261127)
 
-# The World in One Image — Friday, 27 November 2026
+One picture, one day: Friday, 27 November 2026.
 
-This is my entry for the make.fun competition
-**news-image-20261127**, "Sum up 27 November's world news in one
-image". The bounty page is here:
+This repository holds my make.fun entry for
+**news-image-20261127** — the contest that asks for the whole
+day's world news compressed into a single image:
 https://make.fun/bounty/news-image-20261127
 
-## What is on the page
+## What the poster reports
 
-The entry is one square poster drawn to look like a newspaper
-front page for a single day. Its masthead names the date —
-Friday, 27 November 2026 — and everything below it happened
-or was first reported that day:
+I built the page like a broadsheet front page. The nameplate
+gives the date away at once, and every item underneath was
+reported on 27 November 2026:
 
-- **Lead — NZ coalition falls one seat short.** Final official
-  results give the National-led coalition 65 of 130 seats, one
-  short of a majority, after special votes cost it two seats.
-  Prime Minister Christopher Luxon must now win support from
-  the centrist Opportunity party to govern, or risk another
-  election. Labour won the popular vote but lacks the seats.
-- **Hasina sets return date.** Ousted Bangladesh prime minister
-  Sheikh Hasina, 79, sentenced to death in absentia, says she
-  will return on 16 December, Victory Day, from Delhi, where
-  she fled in August 2024. Dhaka says she would be arrested.
-- **Samra homes demolished.** Israeli forces demolish about
-  50 structures, including homes and livestock shelters, in
-  the Palestinian farming community of Samra in Tubas, in the
-  Jordan Valley of the occupied West Bank.
-- **AFP platform offline.** Agence France-Presse takes its
-  AFP Forum content platform offline after a cyberattack that
-  began at 00:30 GMT, and opens an investigation.
-- **Printing money barred.** Argentina's Chamber of Deputies
-  gives final approval to a bill barring the central bank from
-  printing money to fund government spending.
-- **Markets find footing.** Asian shares edge higher after a
-  bruising month, Brent holds near $96 and heads for its first
-  weekly gain in four, the dollar is set for a third monthly
-  gain, and Tokyo core inflation accelerates to 2.9%.
-- **Also today.** Turkey completes ratification of the Mecca
-  defence pact with Pakistan and Saudi Arabia, China tests new
-  Taiwan landing tactics with civilian vessels in Fujian, South
-  Korea repatriates six North Koreans rescued from a drifting
-  boat, a US Thanksgiving storm cancels nearly 400 flights and
-  leaves 724,000 without power, two Italian technicians are
-  killed in a drone attack in Kuwait, EU leaders split over
-  the budget and a $49bn loan to Ukraine, Australia sanctions
-  two people over antisemitic attacks it blames on Iran, and
-  Iran warns South Korea over an expanded naval role.
+The big story is Wellington. When the final count came in, the
+National-led coalition landed on 65 seats out of 130 — a single
+seat away from governing alone. Special votes had taken two
+seats off its earlier tally, so Christopher Luxon now has to
+persuade the centrist Opportunity party to back him, and the
+alternative is going back to the voters. Labour actually polled
+more votes than anyone else, just not in the places that would
+have turned into a majority.
 
-Someone who missed the whole day should be able to read this one
-page from top to bottom and be caught up within a few minutes.
-The dark navy background, gold rules and coloured edge tabs keep
-the panels easy to tell apart at a glance, even as a thumbnail.
+Four stories share the middle of the page:
 
-## How it is built
+- Sheikh Hasina, Bangladesh's ousted prime minister, announced
+  from Delhi that she intends to come home on 16 December,
+  Victory Day. She is 79, she left the country in August 2024,
+  a court has since sentenced her to death in her absence, and
+  Dhaka's position is that she faces arrest on arrival.
+- In the Jordan Valley, Israeli forces knocked down roughly
+  fifty buildings — houses and animal shelters among them — in
+  Samra, a Palestinian farming village in the Tubas area of
+  the occupied West Bank.
+- AFP pulled its Forum platform for clients off the internet
+  after an intrusion that started at 00:30 GMT, and said it is
+  still working out who got in.
+- Argentina's lower house finished passing a law that stops
+  the central bank from creating money to pay the government's
+  bills, restating price stability as the bank's core job.
 
-- `build_poster.py` renders the artwork with Pillow. The day's
-  stories are stored as plain dictionaries, and small helpers wrap
-  text, centre the masthead and draw each framed panel: the lead,
-  a two-by-two grid of four cards, the wide markets panel and the
-  closing "ALSO TODAY" strip. The result is saved as `entry.png`,
-  a 1024x1024 image, and the fixed layout makes every render
-  identical.
-- `main.py` is what the competition runs. Using only the standard
-  library, it copies the bundled `entry.png` into the output
-  directory, creating that directory first if it is missing.
+Below those sits a markets box: Asian equities recovered some
+ground after a rough month for the AI trade, Brent stayed close
+to $96 and is heading for its first weekly rise in four, the
+dollar is on course for a third straight monthly gain, and
+Tokyo's core inflation picked up to 2.9 percent in November.
 
-## Running it
+The strip at the foot of the page picks up eight shorter items:
+Turkey finishing ratification of the Mecca defence pact with
+Pakistan and Saudi Arabia; Chinese landing drills off Fujian
+that linked civilian ships into a floating bridge some 800
+metres long; Seoul sending six rescued North Korean fishermen
+home while a seventh chose to stay; a Thanksgiving storm in the
+United States that cancelled close to 400 flights and cut power
+to 724,000 customers; the deaths of two Italian technicians in
+a drone attack in Kuwait; European leaders arguing over the
+budget and a $49 billion loan for Ukraine; Australian sanctions
+on two people over antisemitic attacks Canberra attributes to
+Iran; and Tehran warning Seoul about a wider naval role near
+the Gulf of Oman.
 
-Deliver the entry with:
+## How the code works
+
+Two Python files do everything:
+
+- `build_poster.py` is the artist. It stores the edition as
+  tuples — a label, a headline, a short summary and an accent
+  colour for each story — and a `FrontPage` class walks down
+  the canvas placing the nameplate, the lead card, a two-by-two
+  block of smaller cards, the markets card and the closing
+  strip. Text is broken into lines by measuring its rendered
+  width in pixels, so nothing spills out of its card. Running
+  it writes `entry.png`, a square image of 1024 by 1024 pixels.
+- `main.py` is the courier the contest actually runs. It works
+  out the output folder, makes it if necessary, and streams the
+  bundled `entry.png` into it untouched, using nothing outside
+  the standard library. Same input, same bytes, every time.
+
+## Trying it locally
 
 ```sh
 python3 main.py
 ```
 
-By default that writes `/output/entry.png`. To send it somewhere
-else, set `MAKEFUN_OUTPUT_DIR`:
+That places the poster at `/output/entry.png`. Set
+`MAKEFUN_OUTPUT_DIR` to redirect it, for example:
 
 ```sh
 MAKEFUN_OUTPUT_DIR=out python3 main.py
 ```
 
-To rebuild the artwork, install Pillow and run
-`python3 build_poster.py`, then run `main.py` again. Repeated runs
-of `main.py` produce byte-identical output, which you can check
-with `md5sum`.
+If you want to redraw the artwork itself, install Pillow, run
+`python3 build_poster.py`, and then run `main.py` again.
+Checking `md5sum` on the outputs of two runs is the quickest
+way to confirm they match exactly.
 
 ## License
 
-MIT — see the `LICENSE` file.
+MIT — the full text is in the `LICENSE` file.
